@@ -11,9 +11,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 
 MouseArea {
-    required property /*QModelIndex*/var modelIndex
-    required property /*undefined|WId where WId = int|string*/ var winId
-    required property Task rootTask
+    required property var modelIndex
+    required property var winId
+    required property var rootTask
+
+    property bool globalHovered: false
 
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
     hoverEnabled: true
@@ -23,20 +25,33 @@ MouseArea {
         switch (mouse.button) {
         case Qt.LeftButton:
             tasksModel.requestActivate(modelIndex);
-            rootTask.hideImmediately();
-            backend.cancelHighlightWindows();
+            rootTask.closeTooltip();
+            if (rootTask.tasksRoot) {
+                rootTask.tasksRoot.cancelHighlightWindows();
+            }
             break;
         case Qt.MiddleButton:
-            backend.cancelHighlightWindows();
+            if (rootTask.tasksRoot) {
+                rootTask.tasksRoot.cancelHighlightWindows();
+            }
             tasksModel.requestClose(modelIndex);
             break;
         case Qt.RightButton:
-            tasks.createContextMenu(rootTask, modelIndex).show();
+            if (rootTask.tasksRoot) {
+                rootTask.tasksRoot.createContextMenu(rootTask, modelIndex).show();
+            }
             break;
         }
     }
 
-    onContainsMouseChanged: {
-        tasks.windowsHovered([winId], containsMouse);
+    function updateHoverState() {
+        if (rootTask.tasksRoot) {
+            // Окно подсвечивается/скрывает другие, если мышь внутри этого MouseArea ИЛИ где-то еще в тултипе
+            const isHovered = containsMouse || globalHovered;
+            rootTask.tasksRoot.windowsHovered([winId], isHovered);
+        }
     }
+
+    onContainsMouseChanged: updateHoverState()
+    onGlobalHoveredChanged: updateHoverState()
 }
